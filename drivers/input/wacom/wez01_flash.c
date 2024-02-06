@@ -150,7 +150,7 @@ static int wacom_flash_cmd(struct wacom_i2c *wac_i2c)
 		return -EXIT_FAIL;
 	}
 
-	sec_delay(300);
+	msleep(300);
 
 	return 0;
 }
@@ -529,7 +529,7 @@ static int wacom_i2c_flash_w9020(struct wacom_i2c *wac_i2c, unsigned char *fw_da
 		return -EXIT_FAIL_GET_MPU_TYPE;
 	}
 
-	if (iMpuType != MPU_WEZ01) {
+	if (iMpuType != MPU_WEZ01 && iMpuType != MPU_W9021) {
 		input_err(true, &client->dev,
 					"MPU is not for WEZ01 : %x\n", iMpuType);
 		return -EXIT_FAIL_GET_MPU_TYPE;
@@ -614,7 +614,7 @@ int wacom_i2c_flash(struct wacom_i2c *wac_i2c)
 		goto out;
 	}
 
-	sec_delay(200);
+	msleep(200);
 
 out:
 	wac_i2c->function_result &= ~EPEN_EVENT_SURVEY;

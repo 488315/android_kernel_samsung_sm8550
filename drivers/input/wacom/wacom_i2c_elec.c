@@ -132,7 +132,7 @@ long long mean(long long* arr, int length)
 
 int calibration_trx_data(struct wacom_i2c *wac_i2c)
 {
-	struct wacom_elec_data *edata = wac_i2c->edata;
+	struct wacom_elec_data *edata = wac_i2c->pdata->edata;
 	long long *cal_xx_raw, *cal_xy_raw, *cal_yx_raw, *cal_yy_raw, *cal_xy_edg_raw, *cal_yx_edg_raw;
 	int i;
 
@@ -216,7 +216,7 @@ int calibration_trx_data(struct wacom_i2c *wac_i2c)
 
 void calculate_ratio(struct wacom_i2c *wac_i2c)
 {
-	struct wacom_elec_data *edata = wac_i2c->edata;
+	struct wacom_elec_data *edata = wac_i2c->pdata->edata;
 	int i;
 
 	for (i = 0; i < edata->max_x_ch; i++)
@@ -239,7 +239,7 @@ void calculate_ratio(struct wacom_i2c *wac_i2c)
 
 void make_decision(struct wacom_i2c* wac_i2c, u16* arrResult)
 {
-	struct wacom_elec_data *edata = wac_i2c->edata;
+	struct wacom_elec_data* edata = wac_i2c->pdata->edata;
 	u32 open_count, short_count;
 	int i;
 
@@ -309,7 +309,7 @@ void make_decision(struct wacom_i2c* wac_i2c, u16* arrResult)
 
 void print_elec_data(struct wacom_i2c *wac_i2c)
 {
-	struct wacom_elec_data *edata = wac_i2c->edata;
+	struct wacom_elec_data *edata = wac_i2c->pdata->edata;
 	u8 *pstr = NULL;
 	u8 ptmp[WACOM_CMD_RESULT_WORD_LEN] = { 0 };
 	int chsize, lsize;
@@ -363,7 +363,7 @@ void print_elec_data(struct wacom_i2c *wac_i2c)
 
 void print_trx_data(struct wacom_i2c *wac_i2c)
 {
-	struct wacom_elec_data *edata = wac_i2c->edata;
+	struct wacom_elec_data *edata = wac_i2c->pdata->edata;
 	struct i2c_client *client = wac_i2c->client;
 	u8 tmp_buf[WACOM_CMD_RESULT_WORD_LEN] = { 0 };
 	u8 *buff;
@@ -486,7 +486,7 @@ void print_trx_data(struct wacom_i2c *wac_i2c)
 
 void print_cal_trx_data(struct wacom_i2c *wac_i2c)
 {
-	struct wacom_elec_data *edata = wac_i2c->edata;
+	struct wacom_elec_data *edata = wac_i2c->pdata->edata;
 	struct i2c_client *client = wac_i2c->client;
 	u8 tmp_buf[WACOM_CMD_RESULT_WORD_LEN] = { 0 };
 	u8 *buff;
@@ -583,7 +583,7 @@ void print_cal_trx_data(struct wacom_i2c *wac_i2c)
 
 void print_ratio_trx_data(struct wacom_i2c *wac_i2c)
 {
-	struct wacom_elec_data *edata = wac_i2c->edata;
+	struct wacom_elec_data *edata = wac_i2c->pdata->edata;
 	struct i2c_client *client = wac_i2c->client;
 	u8 tmp_buf[WACOM_CMD_RESULT_WORD_LEN] = { 0 };
 	u8 *buff;
@@ -680,7 +680,7 @@ void print_ratio_trx_data(struct wacom_i2c *wac_i2c)
 
 void print_difference_ratio_trx_data(struct wacom_i2c *wac_i2c)
 {
-	struct wacom_elec_data *edata = wac_i2c->edata;
+	struct wacom_elec_data *edata = wac_i2c->pdata->edata;
 	struct i2c_client *client = wac_i2c->client;
 	u8 tmp_buf[WACOM_CMD_RESULT_WORD_LEN] = { 0 };
 	u8 *buff;

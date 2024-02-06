@@ -1,10 +1,12 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2018 Samsung Electronics Co., Ltd.
+ * sec_tclm.c - samsung tclm command driver
+ *
+ * Copyright (C) 2018 Samsung Electronics
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
+ *
  */
 
 #include <linux/input.h>
@@ -64,34 +66,16 @@ void sec_tclm_case(struct sec_tclm_data *data, int tclm_case)
 }
 EXPORT_SYMBOL(sec_tclm_case);
 
-
-int sec_tclm_read(struct sec_tclm_data *data, int address)
-{
-	if (data->dev && data->tclm_read)
-		return data->tclm_read(data->dev, address);
-
-	return -ENODEV;
-}
-int sec_tclm_write(struct sec_tclm_data *data, int address)
-{
-	if (data->dev && data->tclm_write)
-		return data->tclm_write(data->dev, address);
-
-	return -ENODEV;
-}
-int sec_tclm_execute_force_calibration(struct sec_tclm_data *data, int cal_mode)
-{
-	if (data->dev && data->tclm_execute_force_calibration)
-		return data->tclm_execute_force_calibration(data->dev, cal_mode);
-
-	return -ENODEV;
-}
-
 int tclm_test_command(struct sec_tclm_data *data, int test_case, int cmd_param1, int cmd_param2, char *buff)
 {
 	int ret = 1;
 	const int buff_size = 256;
-	struct device *dev = data->dev;
+	struct device *dev = NULL;
+
+	if (data->client)
+		dev = &data->client->dev;
+	if (data->spi)
+		dev = &data->spi->dev;
 
 	if (!dev)
 		return -ENODEV;
@@ -100,11 +84,9 @@ int tclm_test_command(struct sec_tclm_data *data, int test_case, int cmd_param1,
 	case 0:	// get tclm_level,afe_base
 		snprintf(buff, buff_size, "%d,%04X", data->tclm_level, data->afe_base);
 		break;
-	case 1:
-	/* change cal_position & history
-	 * cmd_param[1]: cal_position enum
-	 * cmd_param[2]: tune_fix_ver
-	 */
+	case 1: /* change cal_position & history
+		  * cmd_param[1]: cal_position enum
+		  * cmd_param[2]: tune_fix_ver */
 		if (cmd_param1 == 0xff)
 			sec_tclm_root_of_cal(data, 0);
 		else
@@ -132,7 +114,10 @@ int tclm_test_command(struct sec_tclm_data *data, int test_case, int cmd_param1,
 		}
 		data->nvdata.cal_position = data->root_of_calibration;
 		data->nvdata.tune_fix_ver = cmd_param2;
-		ret = sec_tclm_write(data, SEC_TCLM_NVM_ALL_DATA);
+		if (data->client && data->tclm_write)
+			ret = data->tclm_write(data->client, SEC_TCLM_NVM_ALL_DATA);
+		else if (data->spi && data->tclm_write_spi)
+			ret = data->tclm_write_spi(data->spi, SEC_TCLM_NVM_ALL_DATA);
 		if (ret < 0) {
 			input_info(true, dev, "%s failed\n", __func__);
 			snprintf(buff, buff_size, "%s", "FAIL");
@@ -147,17 +132,19 @@ int tclm_test_command(struct sec_tclm_data *data, int test_case, int cmd_param1,
 
 		snprintf(buff, buff_size, "%s", "OK");
 		break;
-	case 2:
-	/* change tclm_level, afe_base
-	 * cmd_param[1]: tclm_level
-	 * cmd_param[2]: afe_base
-	 */
+	case 2: /* change tclm_level, afe_base
+		  * cmd_param[1]: tclm_level
+		  * cmd_param[2]: afe_base */
 		{
+
 			data->tclm[0] = (cmd_param1 & 0xFF);
 			data->tclm[1] = ((cmd_param2 >> 8) & 0xFF);
 			data->tclm[2] = (cmd_param2 & 0xFF);
 
-			ret = sec_tclm_write(data, SEC_TCLM_NVM_TEST);
+			if (data->client && data->tclm_write)
+				ret = data->tclm_write(data->client, SEC_TCLM_NVM_TEST);
+			else if (data->spi && data->tclm_write_spi)
+				ret = data->tclm_write_spi(data->spi, SEC_TCLM_NVM_TEST);
 			if (ret < 0) {
 				input_info(true, dev, "%s failed\n", __func__);
 				snprintf(buff, buff_size, "%s", "FAIL");
@@ -165,7 +152,10 @@ int tclm_test_command(struct sec_tclm_data *data, int test_case, int cmd_param1,
 			}
 
 			memset(data->tclm, 0x00, SEC_TCLM_NVM_OFFSET_LENGTH);
-			ret = sec_tclm_read(data, SEC_TCLM_NVM_TEST);
+			if (data->client && data->tclm_read)
+				ret = data->tclm_read(data->client, SEC_TCLM_NVM_TEST);
+			else if (data->spi && data->tclm_read_spi)
+				ret = data->tclm_read_spi(data->spi, SEC_TCLM_NVM_TEST);
 			if (ret < 0) {
 				input_info(true, dev, "%s failed\n", __func__);
 				snprintf(buff, buff_size, "%s", "FAIL");
@@ -174,18 +164,21 @@ int tclm_test_command(struct sec_tclm_data *data, int test_case, int cmd_param1,
 			data->tclm_level = data->tclm[0];
 			data->afe_base = (data->tclm[1] << 8) | data->tclm[2];
 
-			input_err(true, dev, "%s,2: tclm_level %d, sec_afe_base %04X\n", __func__, data->tclm_level, data->afe_base);
+			input_err(true, &data->client->dev, "%s,2: tclm_level %d, sec_afe_base %04X\n", __func__, data->tclm_level, data->afe_base);
 			snprintf(buff, buff_size, "%s", "OK");
 		}
 		break;
 	case 3: /* clear tclm_level, afe_base nv & set to dt_data */
 		{
-			data->tclm[0] = 0xff;
-			data->tclm[1] = 0xff;
-			data->tclm[2] = 0xff;
+			data->tclm[0]= 0xff;
+			data->tclm[1]= 0xff;
+			data->tclm[2]= 0xff;
 
 			/* clear tclm_level, afe_base nvm to 0xff */
-			ret = sec_tclm_write(data, SEC_TCLM_NVM_TEST);
+			if (data->client && data->tclm_write)
+				ret = data->tclm_write(data->client, SEC_TCLM_NVM_TEST);
+			else if (data->spi && data->tclm_write_spi)
+				ret = data->tclm_write_spi(data->spi, SEC_TCLM_NVM_TEST);
 			if (ret < 0) {
 				input_info(true, dev, "%s failed\n", __func__);
 				snprintf(buff, buff_size, "%s", "FAIL");
@@ -193,7 +186,10 @@ int tclm_test_command(struct sec_tclm_data *data, int test_case, int cmd_param1,
 			}
 
 			/* get dt_data again */
-			data->tclm_parse_dt(dev, data);
+			if (data->client && data->tclm_parse_dt)
+				data->tclm_parse_dt(&data->client->dev, data);
+			else if (data->spi && data->tclm_parse_dt_dev)
+				data->tclm_parse_dt_dev(&data->spi->dev, data);
 
 			input_err(true, dev, "%s,3: tclm_level %d, sec_afe_base %04X\n", __func__, data->tclm_level, data->afe_base);
 			snprintf(buff, buff_size, "%s", "OK");
@@ -209,13 +205,21 @@ int sec_tclm_test_on_probe(struct sec_tclm_data *data)
 {
 	int retry = 3;
 	int ret = 0;
-	struct device *dev = data->dev;
+	struct device *dev = NULL;
+
+	if (data->client)
+		dev = &data->client->dev;
+	if (data->spi)
+		dev = &data->spi->dev;
 
 	if (!dev)
 		return -ENODEV;
 
 	while (retry--) {
-		ret = sec_tclm_read(data, SEC_TCLM_NVM_TEST);
+		if (data->client && data->tclm_read)
+			ret = data->tclm_read(data->client, SEC_TCLM_NVM_TEST);
+		else if (data->spi && data->tclm_read_spi)
+			ret = data->tclm_read_spi(data->spi, SEC_TCLM_NVM_TEST);
 		if (ret >= 0)
 			break;
 	}
@@ -231,14 +235,22 @@ int sec_tclm_get_nvm_all(struct sec_tclm_data *data)
 {
 	int ret = -1;
 	int retry = 3;
-	struct device *dev = data->dev;
+	struct device *dev = NULL;
+
+	if (data->client)
+		dev = &data->client->dev;
+	if (data->spi)
+		dev = &data->spi->dev;
 
 	if (!dev)
 		return -ENODEV;
 
 	/* just don't read tune_fix_version, because this is write_only_value. */
 	while (retry--) {
-		ret = sec_tclm_read(data, SEC_TCLM_NVM_ALL_DATA);
+		if (data->client && data->tclm_read)
+			ret = data->tclm_read(data->client, SEC_TCLM_NVM_ALL_DATA);
+		else if (data->spi && data->tclm_read_spi)
+			ret = data->tclm_read_spi(data->spi, SEC_TCLM_NVM_ALL_DATA);
 		if (ret >= 0)
 			break;
 	}
@@ -277,7 +289,12 @@ void sec_tclm_position_history(struct sec_tclm_data *data)
 	int now_lastp = data->nvdata.cal_pos_hist_lastp;
 	unsigned char *pStr = NULL;
 	unsigned char pTmp[5] = { 0 };
-	struct device *dev = data->dev;
+	struct device *dev = NULL;
+
+	if (data->client)
+		dev = &data->client->dev;
+	if (data->spi)
+		dev = &data->spi->dev;
 
 	if (!dev)
 		return;
@@ -328,7 +345,12 @@ EXPORT_SYMBOL(sec_tclm_debug_info);
 
 void sec_tclm_root_of_cal(struct sec_tclm_data *data, int pos)
 {
-	struct device *dev = data->dev;
+	struct device *dev = NULL;
+
+	if (data->client)
+		dev = &data->client->dev;
+	if (data->spi)
+		dev = &data->spi->dev;
 
 	if (!dev)
 		return;
@@ -341,7 +363,12 @@ EXPORT_SYMBOL(sec_tclm_root_of_cal);
 
 static bool sec_tclm_check_condition_valid(struct sec_tclm_data *data)
 {
-	struct device *dev = data->dev;
+	struct device *dev = NULL;
+
+	if (data->client)
+		dev = &data->client->dev;
+	if (data->spi)
+		dev = &data->spi->dev;
 
 	if (!dev)
 		return false;
@@ -416,7 +443,12 @@ int sec_execute_tclm_package(struct sec_tclm_data *data, int factory_mode)
 {
 	int ret;
 	int retry = 3;
-	struct device *dev = data->dev;
+	struct device *dev = NULL;
+
+	if (data->client)
+		dev = &data->client->dev;
+	if (data->spi)
+		dev = &data->spi->dev;
 
 	if (!dev)
 		return -ENODEV;
@@ -449,7 +481,10 @@ int sec_execute_tclm_package(struct sec_tclm_data *data, int factory_mode)
 		input_err(true, dev, "%s: RUN OFFSET CALIBRATION,%d\n", __func__, ret);
 
 		/* execute force cal */
-		ret = sec_tclm_execute_force_calibration(data, TCLM_OFFSET_CAL_SEC);
+		if (data->client && data->tclm_execute_force_calibration)
+			ret = data->tclm_execute_force_calibration(data->client, TCLM_OFFSET_CAL_SEC);
+		else if (data->spi && data->tclm_execute_force_calibration_spi)
+			ret = data->tclm_execute_force_calibration_spi(data->spi, TCLM_OFFSET_CAL_SEC);
 		if (ret < 0) {
 			input_err(true, dev, "%s: fail to write OFFSET CAL SEC!\n", __func__);
 			return ret;
@@ -474,7 +509,10 @@ int sec_execute_tclm_package(struct sec_tclm_data *data, int factory_mode)
 	data->nvdata.cal_count++;
 
 	/* saving tune_version */
-	ret = sec_tclm_read(data, SEC_TCLM_NVM_OFFSET_IC_FIRMWARE_VER);
+	if (data->client && data->tclm_read)
+		ret = data->tclm_read(data->client, SEC_TCLM_NVM_OFFSET_IC_FIRMWARE_VER);
+	else if (data->spi && data->tclm_read_spi)
+		ret = data->tclm_read_spi(data->spi, SEC_TCLM_NVM_OFFSET_IC_FIRMWARE_VER);
 	if (ret < 0) {
 		input_err(true, dev, "%s: SEC_TCLM_NVM_OFFSET_IC_FIRMWARE_VER i2c read fail", __func__);
 		goto out;
@@ -482,7 +520,10 @@ int sec_execute_tclm_package(struct sec_tclm_data *data, int factory_mode)
 	data->nvdata.tune_fix_ver = ret;
 
 	while (retry--) {
-		ret = sec_tclm_write(data, SEC_TCLM_NVM_ALL_DATA);
+		if (data->client && data->tclm_write)
+			ret = data->tclm_write(data->client, SEC_TCLM_NVM_ALL_DATA);
+		else if (data->spi && data->tclm_write_spi)
+			ret = data->tclm_write_spi(data->spi, SEC_TCLM_NVM_ALL_DATA);
 		if (ret >= 0)
 			break;
 	}
@@ -505,13 +546,21 @@ int sec_tclm_check_cal_case(struct sec_tclm_data *data)
 {
 	int restore_cal = 0;
 	int ret = 0;
-	struct device *dev = data->dev;
+	struct device *dev = NULL;
+
+	if (data->client)
+		dev = &data->client->dev;
+	if (data->spi)
+		dev = &data->spi->dev;
 
 	if (!dev)
 		return -ENODEV;
 
 	if (data->nvdata.cal_count == 0xFF) {
-		ret = sec_tclm_read(data, SEC_TCLM_NVM_ALL_DATA);
+		if (data->client && data->tclm_read)
+			ret = data->tclm_read(data->client, SEC_TCLM_NVM_ALL_DATA);
+		else if (data->spi && data->tclm_read_spi)
+			ret = data->tclm_read_spi(data->spi, SEC_TCLM_NVM_ALL_DATA);
 		if (ret < 0) {
 			input_err(true, dev, "%s: fail to read SEC_TCLM_NVM_ALL_DATA !\n", __func__);
 			return ret;
@@ -542,8 +591,9 @@ int sec_tclm_check_cal_case(struct sec_tclm_data *data)
 	}
 
 	ret = sec_tclm_get_nvm_all(data);
-	if (ret < 0)
-		input_info(true, dev, "%s: sec_tclm_get_nvm_all error\n", __func__);
+	if (ret < 0) {
+		input_info(true, dev, "%s: sec_tclm_get_nvm_all error \n", __func__);
+	}
 
 	return ret;
 }

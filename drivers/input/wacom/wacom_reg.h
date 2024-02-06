@@ -1,3 +1,5 @@
+#include <linux/version.h>
+
 /* for query request (not use) */
 #define COM_QUERY			0x2A
 
@@ -12,18 +14,13 @@
 
 #define COM_CHECKSUM			0x63
 
-#define COM_DISPLAY_NS_MODE_COMPENSATION		0x78
-#define COM_DISPLAY_HS_MODE_COMPENSATION		0x79
 #define COM_NORMAL_COMPENSATION		0x80
 #define COM_SPECIAL_COMPENSATION	0x81
 #define COM_BOOKCOVER_COMPENSATION	0x81
 #define COM_KBDCOVER_COMPENSATION	0x82
-#define COM_REARCOVER_TYPE1		0x81
-#define COM_REARCOVER_TYPE2		0x82
+#define COM_POGOCOVER_COMPENSATION	0x83
 
-/* standby mode */
-#define COM_SET_ACTIVATED_MODE	0x85
-#define COM_SET_STANDBY_MODE	0x86
+#define COM_KBDCOVER_CHECK_STATUS	0x88
 
 /* elec test*/
 #define COM_ASYNC_VSYNC			0X28
@@ -49,6 +46,7 @@
 
 /* have to check below register*/
 #define COM_REQUEST_GARAGEDATA		0XE5
+#define COM_REQUEST_GARAGE_SWAPAXIS	0xF9
 #define COM_REQUEST_SCANMODE		0xE6
 
 #define COM_BLE_C_DISABLE		0XE8
@@ -115,3 +113,9 @@ enum epen_ble_charge_state {
 #define MPU_W9021			0x45
 #define MPU_WEZ01			0x46
 
+/* Switch events */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
+#define SW_FLIP	0x10  /* set = flip cover open, close*/
+#else
+#define SW_FLIP	0x15  /* set = flip cover open, close*/
+#endif

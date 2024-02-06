@@ -40,7 +40,7 @@ void
 detach_one_task_core(struct task_struct *p, struct rq *rq,
 		     struct list_head *tasks)
 {
-	walt_lockdep_assert_rq(rq, p);
+	lockdep_assert_held(&rq->__lock);
 
 	p->on_rq = TASK_ON_RQ_MIGRATING;
 	deactivate_task(rq, p, 0);
@@ -51,7 +51,7 @@ void attach_tasks_core(struct list_head *tasks, struct rq *rq)
 {
 	struct task_struct *p;
 
-	walt_lockdep_assert_rq(rq, NULL);
+	lockdep_assert_held(&rq->__lock);
 
 	while (!list_empty(tasks)) {
 		p = list_first_entry(tasks, struct task_struct, se.group_node);

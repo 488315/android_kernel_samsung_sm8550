@@ -1,12 +1,13 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2014 Samsung Electronics Co., Ltd.
+ * sec_notifier.c - samsung common functions
+ *
+ * Copyright (C) 2020 Samsung Electronics
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
+ *
  */
-
 //#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/input.h>
@@ -32,7 +33,7 @@ EXPORT_SYMBOL(sec_input_register_notify);
 /*
  * sec_input_unregister_notify
  * @nb: pointer of blocking notifier chain structure
- *
+ * 
  * unregister notifier
  */
 void sec_input_unregister_notify(struct notifier_block *nb)

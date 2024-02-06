@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-dts-dirs += foldable/q5q
+dts-dirs += galaxytab/gts9wifi
 
 always          := $(dtb-y)
 subdir-y        := $(dts-dirs)
